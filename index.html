@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playwright - Automation Testing</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                        mono: ['Consolas', 'Monaco', 'Courier New', 'monospace']
+                    },
+                    colors: {
+                        gray: {
+                            850: '#1f2937',
+                            950: '#0b1120',
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.6s ease-out forwards',
+                        'slide-in-right': 'slideInRight 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
+                        'modal-zoom': 'modalZoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        slideInRight: {
+                            '0%': { opacity: '0', transform: 'translateX(50px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        },
+                        modalZoomIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.9)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-15px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background-color: #0b1120;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            color: #f3f4f6;
+        }
+
+        .slide {
+            display: none;
+            height: 100%;
+            width: 100%;
+        }
+
+        .slide.active {
+            display: flex;
+        }
+
+        /* Animation Delays */
+        .delay-100 {
+            animation-delay: 100ms;
+        }
+
+        .delay-200 {
+            animation-delay: 200ms;
+        }
+
+        .delay-300 {
+            animation-delay: 300ms;
+        }
+
+        .delay-400 {
+            animation-delay: 400ms;
+        }
+
+        .delay-500 {
+            animation-delay: 500ms;
+        }
+
+        .opacity-0-init {
+            opacity: 0;
+        }
+
+        /* Custom Scrollbar for Code Blocks */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #111827;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+
+        /* Thẻ h1 gradient text */
+        .gradient-text {
+            background: linear-gradient(to right, #34d399, #22d3ee);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Video Portal Styles */
+        .video-portal-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            overflow-y: auto;
+        }
+
+        .video-portal-container.active {
+            display: flex;
+        }
+
+        #demo-video {
+            width: 90%;
+            max-width: 1400px;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            border: 1px solid #374151;
+            margin-bottom: 30px;
+        }
+
+        .code-syntax .keyword {
+            color: #ff7b72;
+        }
+
+        .code-syntax .function {
+            color: #d2a8ff;
+        }
+
+        .code-syntax .string {
+            color: #a5d6ff;
+        }
+
+        .code-syntax .comment {
+            color: #8b949e;
+            font-style: italic;
+        }
+
+        #presentation-container {
+            transition: transform 0.2s ease-out;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background-color: transparent !important;
+            border-color: #374151 !important;
+        }
+    </style>
+</head>
+
+<body class="w-full h-screen flex items-center justify-center relative">
+
+    <!-- Container Wrap -->
+    <div id="presentation-container"
+        class="bg-gray-900 relative overflow-hidden flex flex-col flex-shrink-0 w-full h-screen z-10">
+
+        <!-- Ambient Background Effects -->
+        <div
+            class="absolute -top-60 -right-60 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none z-0">
+        </div>
+        <div
+            class="absolute -bottom-60 -left-60 w-[600px] h-[600px] bg-sky-500/10 rounded-full blur-[100px] pointer-events-none z-0">
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="absolute top-0 left-0 h-1.5 bg-gray-800 w-full z-50">
+            <div id="progress-bar"
+                class="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-500 ease-out"
+                style="width: 11.11%"></div>
+        </div>
+
+        <!-- SLIDES CONTENT AREA -->
+        <div class="flex-1 relative px-16 py-10 flex flex-col justify-center items-center z-10 w-full">
+
+            <!-- SLIDE 1: Title -->
+            <div class="slide active flex-col items-center justify-center text-center w-full animate-slide-in-right"
+                data-slide="1">
+                <div class="animate-fade-in opacity-0-init">
+                    <div
+                        class="w-32 h-32 mx-auto bg-emerald-500/10 rounded-3xl flex items-center justify-center border border-emerald-500/30 mb-8 shadow-[0_0_40px_rgba(16,185,129,0.2)]">
+                        <i data-lucide="play-circle" class="text-emerald-400 w-16 h-16"></i>
+                    </div>
+                </div>
+                <h1
+                    class="text-7xl font-extrabold gradient-text animate-fade-in delay-100 opacity-0-init tracking-tight leading-tight mb-4 drop-shadow-lg">
+                    Playwright
+                </h1>
+                <h2 class="text-4xl font-light text-gray-300 animate-fade-in delay-100 opacity-0-init mb-16">
+                    Kỷ nguyên mới của Automation Testing
+                </h2>
+
+                <div
+                    class="pt-8 border-t border-gray-800 w-full max-w-4xl grid grid-cols-2 gap-12 text-left animate-fade-in delay-200 opacity-0-init bg-gray-900/60 p-10 rounded-3xl border border-gray-800/80 shadow-2xl backdrop-blur-sm">
+                    <div class="border-r border-gray-800 pr-8">
+                        <p class="text-emerald-500 uppercase text-sm font-bold tracking-widest mb-3 flex items-center">
+                            <i data-lucide="target" class="w-4 h-4 mr-2"></i> Môn học
+                        </p>
+                        <p class="text-2xl font-semibold text-gray-100 leading-snug">Kiểm thử và Đảm bảo<br />chất lượng
+                            phần mềm</p>
+                    </div>
+                    <div class="pl-4">
+                        <p class="text-emerald-500 uppercase text-sm font-bold tracking-widest mb-3 flex items-center">
+                            <i data-lucide="layout" class="w-4 h-4 mr-2"></i> Thông tin
+                        </p>
+                        <p class="text-2xl text-gray-100 mb-2"><span class="text-gray-500 font-medium">GV hướng
+                                dẫn:</span> Ths. Trịnh Công Nhựt</p>
+                        <p class="text-2xl text-gray-100"><span class="text-gray-500 font-medium">Nhóm thực hiện:</span>
+                            DHKKL</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2: What is Playwright? -->
+            <div class="slide flex-col h-full justify-center w-full" data-slide="2">
+                <h2
+                    class="text-5xl font-bold text-emerald-400 mb-12 flex items-center border-b border-gray-800 pb-6 w-full animate-slide-in-right">
+                    <i data-lucide="globe" class="mr-5 w-12 h-12"></i> Playwright là gì?
+                </h2>
+                <div class="grid grid-cols-[1.3fr_0.7fr] gap-16 items-center">
+                    <div class="space-y-8 text-2xl text-gray-300">
+                        <div
+                            class="flex items-start animate-fade-in opacity-0-init bg-gray-800/30 p-5 rounded-2xl border border-gray-800/50">
+                            <div class="mt-1 mr-5 text-emerald-500 flex-shrink-0 bg-emerald-500/10 p-2 rounded-full"><i
+                                    data-lucide="check-circle" class="w-7 h-7"></i></div>
+                            <div><strong class="text-white">Định nghĩa:</strong> Framework mã nguồn mở của Microsoft
+                                (2020).</div>
+                        </div>
+                        <div
+                            class="flex items-start animate-fade-in delay-100 opacity-0-init bg-gray-800/30 p-5 rounded-2xl border border-gray-800/50">
+                            <div class="mt-1 mr-5 text-emerald-500 flex-shrink-0 bg-emerald-500/10 p-2 rounded-full"><i
+                                    data-lucide="target" class="w-7 h-7"></i></div>
+                            <div><strong class="text-white">Mục tiêu:</strong> Kiểm thử End-to-End (E2E) cho Web hiện
+                                đại.</div>
+                        </div>
+                        <div
+                            class="flex items-start animate-fade-in delay-200 opacity-0-init bg-gray-800/30 p-5 rounded-2xl border border-gray-800/50">
+                            <div class="mt-1 mr-5 text-emerald-500 flex-shrink-0 bg-emerald-500/10 p-2 rounded-full"><i
+                                    data-lucide="layout" class="w-7 h-7"></i></div>
+                            <div><strong class="text-white">Đa trình duyệt:</strong> Hỗ trợ hoàn hảo Chromium (Chrome,
+                                Edge), WebKit (Safari), Firefox.</div>
+                        </div>
+                        <div
+                            class="flex items-start animate-fade-in delay-300 opacity-0-init bg-gray-800/30 p-5 rounded-2xl border border-gray-800/50">
+                            <div class="mt-1 mr-5 text-emerald-500 flex-shrink-0 bg-emerald-500/10 p-2 rounded-full"><i
+                                    data-lucide="app-window" class="w-7 h-7"></i></div>
+                            <div><strong class="text-white">Đa nền tảng:</strong> Hoạt động nhất quán trên Windows,
+                                Linux, macOS.</div>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-3xl overflow-hidden h-[420px] flex flex-col items-center justify-center relative shadow-2xl animate-fade-in delay-200 opacity-0-init animate-float">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl"></div>
+                        <div class="absolute bottom-0 left-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl"></div>
+                        <i data-lucide="globe"
+                            class="w-36 h-36 text-emerald-400 mb-8 z-10 drop-shadow-[0_0_30px_rgba(16,185,129,0.4)]"></i>
+                        <div class="flex gap-6 z-10">
+                            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-600 shadow-xl"><i
+                                    data-lucide="layout" class="w-10 h-10 text-blue-400"></i></div>
+                            <div
+                                class="bg-gray-800 p-5 rounded-2xl border border-gray-600 shadow-xl transform -translate-y-4">
+                                <i data-lucide="smartphone" class="w-10 h-10 text-purple-400"></i>
+                            </div>
+                            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-600 shadow-xl"><i
+                                    data-lucide="app-window" class="w-10 h-10 text-sky-400"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3: Why Playwright? -->
+            <div class="slide flex-col h-full justify-center w-full" data-slide="3">
+                <h2
+                    class="text-5xl font-bold text-emerald-400 mb-6 flex items-center border-b border-gray-800 pb-6 animate-slide-in-right">
+                    <i data-lucide="zap" class="mr-5 w-12 h-12"></i> Tại sao chọn Playwright?
+                </h2>
+                <p class="text-2xl text-gray-400 mb-10 italic font-light ml-2 animate-fade-in opacity-0-init">Các tính
+                    năng cốt lõi tạo nên sự khác biệt</p>
+                <div class="grid grid-cols-3 gap-8">
+                    <div
+                        class="bg-gray-800/40 border border-gray-700 p-10 rounded-3xl animate-fade-in opacity-0-init hover:border-blue-500/50 hover:bg-gray-800/70 transition-all shadow-xl">
+                        <div
+                            class="bg-blue-500/10 w-20 h-20 rounded-2xl flex items-center justify-center mb-8 border border-blue-500/20">
+                            <i data-lucide="clock" class="w-10 h-10 text-blue-400"></i>
+                        </div>
+                        <h3 class="text-3xl font-bold text-white mb-6">Auto-wait</h3>
+                        <p class="text-xl text-gray-300 leading-relaxed">Tự động chờ (Auto-wait) element sẵn sàng (hiển
+                            thị, có thể click) trước khi hành động. <br /><br /><span
+                                class="text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-lg">→ Loại bỏ lỗi
+                                Flaky</span></p>
+                    </div>
+                    <div
+                        class="bg-gray-800/40 border border-gray-700 p-10 rounded-3xl animate-fade-in delay-100 opacity-0-init hover:border-emerald-500/50 hover:bg-gray-800/70 transition-all shadow-xl">
+                        <div
+                            class="bg-emerald-500/10 w-20 h-20 rounded-2xl flex items-center justify-center mb-8 border border-emerald-500/20">
+                            <i data-lucide="shield-check" class="w-10 h-10 text-emerald-400"></i>
+                        </div>
+                        <h3 class="text-3xl font-bold text-white mb-6">Web-first Assertions</h3>
+                        <p class="text-xl text-gray-300 leading-relaxed">Cơ chế kiểm tra cực kỳ thông minh, có khả năng
+                            <strong>tự động thử lại (retry)</strong> các assertion liên tục cho đến khi đạt điều kiện.
+                        </p>
+                    </div>
+                    <div
+                        class="bg-gray-800/40 border border-gray-700 p-10 rounded-3xl animate-fade-in delay-200 opacity-0-init hover:border-yellow-500/50 hover:bg-gray-800/70 transition-all shadow-xl">
+                        <div
+                            class="bg-yellow-500/10 w-20 h-20 rounded-2xl flex items-center justify-center mb-8 border border-yellow-500/20">
+                            <i data-lucide="zap" class="w-10 h-10 text-yellow-400"></i>
+                        </div>
+                        <h3 class="text-3xl font-bold text-white mb-6">Tốc độ cực nhanh</h3>
+                        <p class="text-xl text-gray-300 leading-relaxed">Sử dụng giao thức <span
+                                class="text-white font-mono bg-gray-900 px-3 py-1.5 rounded-lg border border-gray-700 shadow-inner inline-block my-2">WebSocket</span>
+                            trực tiếp thay vì giao tiếp chậm chạp qua HTTP. <br /><br /><span
+                                class="text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-lg">→ Tương tác
+                                tức thì</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4: Architecture -->
+            <div class="slide flex-col h-full justify-center w-full" data-slide="4">
+                <h2
+                    class="text-5xl font-bold text-emerald-400 mb-12 flex items-center border-b border-gray-800 pb-6 animate-slide-in-right">
+                    <i data-lucide="layout-template" class="mr-5 w-12 h-12"></i> Kiến trúc 3 tầng cốt lõi
+                </h2>
+                <div class="grid grid-cols-[1.2fr_0.8fr] gap-12 items-stretch h-full">
+                    <div class="space-y-8 flex flex-col justify-center">
+                        <div
+                            class="bg-gray-800/40 border-l-8 border-blue-500 p-8 rounded-r-3xl animate-fade-in opacity-0-init shadow-lg">
+                            <h3 class="text-3xl font-bold text-blue-400 flex items-center mb-3"><i data-lucide="globe"
+                                    class="mr-4 w-8 h-8"></i> 1. Browser</h3>
+                            <p class="text-xl text-gray-300">Trình duyệt vật lý (Chromium, WebKit, Firefox). Cho phép
+                                chạy đa instance.</p>
+                        </div>
+                        <div
+                            class="bg-gray-800/40 border-l-8 border-purple-500 p-8 rounded-r-3xl animate-fade-in delay-100 opacity-0-init ml-12 shadow-lg">
+                            <h3 class="text-3xl font-bold text-purple-400 flex items-center mb-3"><i
+                                    data-lucide="layers" class="mr-4 w-8 h-8"></i> 2. Browser Context</h3>
+                            <p class="text-xl text-gray-300">Môi trường cô lập (như "Tab ẩn danh"). Tách biệt Cookie →
+                                <span class="text-white font-medium">Test song song an toàn</span>.
+                            </p>
+                        </div>
+                        <div
+                            class="bg-gray-800/40 border-l-8 border-emerald-500 p-8 rounded-r-3xl animate-fade-in delay-200 opacity-0-init ml-24 shadow-lg">
+                            <h3 class="text-3xl font-bold text-emerald-400 flex items-center mb-3"><i
+                                    data-lucide="file-text" class="mr-4 w-8 h-8"></i> 3. Page</h3>
+                            <p class="text-xl text-gray-300">Đại diện cho 1 Tab/Cửa sổ. Nơi trực tiếp thực hiện mọi thao
+                                tác UI.</p>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-gradient-to-b from-slate-800 to-slate-900 border border-gray-700 rounded-3xl overflow-hidden flex items-center justify-center animate-fade-in delay-300 opacity-0-init shadow-2xl relative">
+                        <div class="flex flex-col gap-6 w-full px-12 z-10">
+                            <div
+                                class="bg-gray-900/90 p-8 rounded-2xl border-2 border-blue-500/50 flex flex-col items-center justify-center">
+                                <i data-lucide="globe" class="w-12 h-12 text-blue-400 mb-2"></i>
+                                <span class="text-2xl font-bold text-white tracking-widest uppercase">Browser</span>
+                            </div>
+                            <div class="w-2 h-10 bg-gray-600 mx-auto -my-6 z-0"></div>
+                            <div
+                                class="bg-gray-900/90 p-8 rounded-2xl border-2 border-purple-500/50 flex flex-col items-center justify-center z-10">
+                                <i data-lucide="layers" class="w-12 h-12 text-purple-400 mb-2"></i>
+                                <span class="text-2xl font-bold text-white tracking-widest uppercase">Contexts</span>
+                            </div>
+                            <div class="w-2 h-10 bg-gray-600 mx-auto -my-6 z-0"></div>
+                            <div
+                                class="bg-gray-900/90 p-8 rounded-2xl border-2 border-emerald-500/50 flex flex-col items-center justify-center z-10">
+                                <i data-lucide="file-text" class="w-12 h-12 text-emerald-400 mb-2"></i>
+                                <span class="text-2xl font-bold text-white tracking-widest uppercase">Pages</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5: Test Script Components -->
+            <div class="slide flex-col h-full justify-center w-full" data-slide="5">
+                <h2
+                    class="text-5xl font-bold text-emerald-400 mb-12 flex items-center border-b border-gray-800 pb-6 animate-slide-in-right">
+                    <i data-lucide="braces" class="mr-5 w-12 h-12"></i> Các thành phần chính trong Test Script
+                </h2>
+                <div class="grid grid-cols-3 gap-10">
+                    <div
+                        class="bg-gray-900 border border-gray-700 shadow-2xl rounded-3xl overflow-hidden animate-fade-in opacity-0-init transform transition-transform hover:-translate-y-2 flex flex-col">
+                        <div class="bg-gray-800/90 px-8 py-6 border-b border-gray-700 flex items-center">
+                            <div class="bg-blue-500/10 p-3 rounded-xl mr-4"><i data-lucide="target"
+                                    class="text-blue-400 w-8 h-8"></i></div>
+                            <h3 class="text-3xl font-bold text-white">Locator</h3>
+                        </div>
+                        <div class="p-8 flex flex-col flex-grow">
+                            <p class="text-xl text-gray-300 mb-8 flex-grow leading-relaxed">Giúp tìm kiếm và
+                                <strong>định vị chính xác</strong> đối tượng DOM trên trang web.
+                            </p>
+                            <code
+                                class="block bg-black text-blue-300 p-5 rounded-xl font-mono text-lg border border-gray-800 shadow-inner">page.locator('.btn')</code>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-gray-900 border border-gray-700 shadow-2xl rounded-3xl overflow-hidden animate-fade-in delay-100 opacity-0-init transform transition-transform hover:-translate-y-2 flex flex-col">
+                        <div class="bg-gray-800/90 px-8 py-6 border-b border-gray-700 flex items-center">
+                            <div class="bg-yellow-500/10 p-3 rounded-xl mr-4"><i data-lucide="mouse-pointer-click"
+                                    class="text-yellow-400 w-8 h-8"></i></div>
+                            <h3 class="text-3xl font-bold text-white">Action</h3>
+                        </div>
+                        <div class="p-8 flex flex-col flex-grow">
+                            <p class="text-xl text-gray-300 mb-8 flex-grow leading-relaxed">Hành động tương tác để
+                                <strong>mô phỏng người dùng thật sự</strong> thao tác.
+                            </p>
+                            <code
+                                class="block bg-black text-yellow-300 p-5 rounded-xl font-mono text-lg border border-gray-800 shadow-inner">.click(), .fill(), .type()</code>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-gray-900 border border-gray-700 shadow-2xl rounded-3xl overflow-hidden animate-fade-in delay-200 opacity-0-init transform transition-transform hover:-translate-y-2 flex flex-col">
+                        <div class="bg-gray-800/90 px-8 py-6 border-b border-gray-700 flex items-center">
+                            <div class="bg-emerald-500/10 p-3 rounded-xl mr-4"><i data-lucide="shield-check"
+                                    class="text-emerald-400 w-8 h-8"></i></div>
+                            <h3 class="text-3xl font-bold text-white">Assertion</h3>
+                        </div>
+                        <div class="p-8 flex flex-col flex-grow">
+                            <p class="text-xl text-gray-300 mb-8 flex-grow leading-relaxed">Hàm <strong>xác nhận kết
+                                    quả</strong> tự động hóa để đảm bảo test chuẩn.</p>
+                            <code
+                                class="block bg-black text-emerald-300 p-5 rounded-xl font-mono text-lg border border-gray-800 shadow-inner">expect(page).toHaveTitle()</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6: Advanced Capabilities -->
+            <div class="slide flex-col h-full justify-center w-full" data-slide="6">
+                <h2
+                    class="text-5xl font-bold text-emerald-400 mb-16 flex items-center border-b border-gray-800 pb-6 animate-slide-in-right">
+                    <i data-lucide="sparkles" class="mr-5 w-12 h-12"></i> Khả năng kỹ thuật linh hoạt khác
+                </h2>
+                <div class="space-y-8 max-w-5xl mx-auto w-full">
+                    <div
+                        class="flex items-center bg-gray-800/40 p-8 rounded-3xl border border-gray-700/60 animate-fade-in opacity-0-init shadow-lg hover:bg-gray-800/60 transition-colors">
+                        <div class="bg-blue-500/10 p-6 rounded-2xl mr-8 border border-blue-500/20 flex-shrink-0">
+                            <i data-lucide="network" class="text-blue-400 w-12 h-12"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-3xl font-bold text-white mb-3">Network Interception</h3>
+                            <p class="text-2xl text-gray-300 leading-relaxed">Can thiệp trực tiếp, lắng nghe và chỉnh
+                                sửa request/response mạng dễ dàng.</p>
+                        </div>
+                    </div>
+                    <div
+                        class="flex items-center bg-gray-800/40 p-8 rounded-3xl border border-gray-700/60 animate-fade-in delay-100 opacity-0-init shadow-lg hover:bg-gray-800/60 transition-colors">
+                        <div class="bg-purple-500/10 p-6 rounded-2xl mr-8 border border-purple-500/20 flex-shrink-0">
+                            <i data-lucide="braces" class="text-purple-400 w-12 h-12"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-3xl font-bold text-white mb-3">API Testing</h3>
+                            <p class="text-2xl text-gray-300 leading-relaxed">Hỗ trợ gọi và kiểm thử API (REST) nhanh
+                                chóng ngay trong nội hàm script.</p>
+                        </div>
+                    </div>
+                    <div
+                        class="flex items-center bg-gray-800/40 p-8 rounded-3xl border border-gray-700/60 animate-fade-in delay-200 opacity-0-init shadow-lg hover:bg-gray-800/60 transition-colors">
+                        <div class="bg-pink-500/10 p-6 rounded-2xl mr-8 border border-pink-500/20 flex-shrink-0">
+                            <i data-lucide="smartphone" class="text-pink-400 w-12 h-12"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-3xl font-bold text-white mb-3">Mobile Emulation</h3>
+                            <p class="text-2xl text-gray-300 leading-relaxed">Giả lập chuẩn xác thiết bị di động (kích
+                                thước, GPS, permissions, User-Agent).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7: Tooling -->
+            <div class="slide flex-col h-full justify-center w-full" data-slide="7">
+                <h2
+                    class="text-5xl font-bold text-emerald-400 mb-12 flex items-center border-b border-gray-800 pb-6 animate-slide-in-right">
+                    <i data-lucide="pen-tool" class="mr-5 w-12 h-12"></i> Hệ sinh thái công cụ (Tooling)
+                </h2>
+                <div class="grid grid-cols-[1.3fr_0.7fr] gap-12 items-center h-full">
+                    <div class="space-y-8">
+                        <div
+                            class="bg-gray-800/50 p-8 rounded-3xl border-l-8 border-emerald-500 animate-fade-in opacity-0-init shadow-lg">
+                            <h3 class="text-2xl font-bold text-white mb-3 flex items-center"><i data-lucide="code"
+                                    class="w-8 h-8 mr-4 text-emerald-400"></i> Codegen</h3>
+                            <p class="text-xl text-gray-300 leading-relaxed">Ghi lại thao tác người dùng (Record) và tự
+                                động sinh ra mã code script (nhiều ngôn ngữ).</p>
+                        </div>
+                        <div
+                            class="bg-gray-800/50 p-8 rounded-3xl border-l-8 border-blue-500 animate-fade-in delay-100 opacity-0-init shadow-lg">
+                            <h3 class="text-2xl font-bold text-white mb-3 flex items-center"><i data-lucide="video"
+                                    class="w-8 h-8 mr-4 text-blue-400"></i> Trace Viewer</h3>
+                            <p class="text-xl text-gray-300 leading-relaxed">Hộp đen ghi lại toàn bộ tiến trình chạy
+                                (Video, Screenshots, Network Log) cực đỉnh để fix bug.</p>
+                        </div>
+                        <div
+                            class="bg-gray-800/50 p-8 rounded-3xl border-l-8 border-purple-500 animate-fade-in delay-200 opacity-0-init shadow-lg">
+                            <h3 class="text-2xl font-bold text-white mb-3 flex items-center"><i data-lucide="terminal"
+                                    class="w-8 h-8 mr-4 text-purple-400"></i> UI Mode & VS Code</h3>
+                            <p class="text-xl text-gray-300 leading-relaxed">Tích hợp cực sâu bào trình soạn thảo, giao
+                                diện đồ họa đẹp, hỗ trợ debug Step-by-step.</p>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-gray-900 border border-gray-700 rounded-3xl overflow-hidden flex flex-wrap content-center justify-center gap-6 p-8 relative shadow-2xl h-[500px] animate-fade-in delay-300 opacity-0-init">
+                        <div
+                            class="bg-gray-800/90 p-8 rounded-2xl border border-gray-600 shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-10 w-44 flex flex-col items-center justify-center transform hover:scale-105 transition-transform cursor-pointer">
+                            <i data-lucide="code" class="w-16 h-16 text-emerald-400 mb-4"></i>
+                            <span class="text-xl font-bold text-gray-200">Codegen</span>
+                        </div>
+                        <div
+                            class="bg-gray-800/90 p-8 rounded-2xl border border-gray-600 shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-10 w-44 flex flex-col items-center justify-center transform hover:scale-105 transition-transform cursor-pointer mt-12">
+                            <i data-lucide="video" class="w-16 h-16 text-blue-400 mb-4"></i>
+                            <span class="text-xl font-bold text-gray-200">Trace</span>
+                        </div>
+                        <div
+                            class="bg-gray-800/90 p-8 rounded-2xl border border-gray-600 shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-10 w-44 flex flex-col items-center justify-center transform hover:scale-105 transition-transform cursor-pointer">
+                            <i data-lucide="terminal" class="w-16 h-16 text-purple-400 mb-4"></i>
+                            <span class="text-xl font-bold text-gray-200">UI Mode</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8: Comparison -->
+            <div class="slide flex-col h-full justify-center w-full" data-slide="8">
+                <h2
+                    class="text-5xl font-bold text-emerald-400 mb-12 flex items-center border-b border-gray-800 pb-6 animate-slide-in-right">
+                    <i data-lucide="check-circle" class="mr-5 w-12 h-12"></i> So sánh Nền tảng
+                </h2>
+                <div
+                    class="w-full bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl animate-fade-in opacity-0-init overflow-hidden">
+                    <table class="w-full text-left text-xl">
+                        <thead class="bg-gray-800/90 text-white border-b border-gray-700">
+                            <tr>
+                                <th class="p-6 font-bold w-1/4">Tiêu chí</th>
+                                <th class="p-6 font-bold w-1/4 text-gray-400">Selenium <span
+                                        class="text-base font-normal block mt-1 opacity-70">Truyền thống</span></th>
+                                <th class="p-6 font-bold w-1/4 text-blue-300">Cypress <span
+                                        class="text-base font-normal block mt-1 opacity-70">Hiện đại</span></th>
+                                <th
+                                    class="p-6 font-bold w-1/4 text-emerald-400 bg-emerald-900/30 border-l border-emerald-900/50">
+                                    Playwright <span class="text-base font-normal block mt-1 opacity-70">Thế hệ
+                                        mới</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            <tr class="hover:bg-gray-800/50 transition-colors">
+                                <td class="p-6 font-semibold text-white">Kiến trúc</td>
+                                <td class="p-6 text-gray-300">WebDriver (HTTP - Chậm)</td>
+                                <td class="p-6 text-gray-300">Chạy trong Browser</td>
+                                <td
+                                    class="p-6 font-bold text-emerald-300 bg-emerald-900/10 border-l border-emerald-900/30">
+                                    WebSocket (Rất nhanh)</td>
+                            </tr>
+                            <tr class="hover:bg-gray-800/50 transition-colors">
+                                <td class="p-6 font-semibold text-white">Đa Tab / Cửa sổ</td>
+                                <td class="p-6 text-gray-300">Hỗ trợ</td>
+                                <td class="p-6 text-gray-500 italic">Hạn chế / Không</td>
+                                <td
+                                    class="p-6 font-bold text-emerald-300 bg-emerald-900/10 border-l border-emerald-900/30">
+                                    Hỗ trợ mạnh mẽ</td>
+                            </tr>
+                            <tr class="hover:bg-gray-800/50 transition-colors">
+                                <td class="p-6 font-semibold text-white">Đa ngôn ngữ</td>
+                                <td class="p-6 text-gray-300">Có</td>
+                                <td class="p-6 text-gray-300">JS / TS</td>
+                                <td
+                                    class="p-6 font-bold text-emerald-300 bg-emerald-900/10 border-l border-emerald-900/30">
+                                    JS/TS, Python, Java, .NET</td>
+                            </tr>
+                            <tr class="hover:bg-gray-800/50 transition-colors">
+                                <td class="p-6 font-semibold text-white">Độ ổn định (Flaky)</td>
+                                <td class="p-6 text-red-400">Kém</td>
+                                <td class="p-6 text-gray-300">Cao</td>
+                                <td
+                                    class="p-6 font-bold text-emerald-300 bg-emerald-900/10 border-l border-emerald-900/30">
+                                    Cực Cao (Nhờ Auto-wait)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SLIDE 9: Conclusion -->
+            <div class="slide flex-col items-center justify-center h-full text-center space-y-10 w-full" data-slide="9">
+                <div class="animate-fade-in opacity-0-init">
+                    <i data-lucide="sparkles" class="text-emerald-400 w-20 h-20 mx-auto mb-6"></i>
+                    <h2 class="text-6xl font-extrabold text-white tracking-wide">Tổng kết</h2>
+                </div>
+                <div
+                    class="bg-gray-800/50 border border-gray-700 p-10 rounded-3xl max-w-4xl w-full text-left animate-fade-in delay-100 opacity-0-init shadow-2xl backdrop-blur-sm">
+                    <div class="flex items-start mb-6">
+                        <div class="bg-emerald-500/20 p-2 rounded-full mr-5 mt-1 flex-shrink-0"><i
+                                data-lucide="check-circle" class="text-emerald-400 w-6 h-6"></i></div>
+                        <p class="text-2xl text-gray-200 leading-relaxed"><strong class="text-white">Kiến trúc 3
+                                tầng</strong> (Browser > Context > Page) hiện đại, cô lập tốt.</p>
+                    </div>
+                    <div class="flex items-start mb-6">
+                        <div class="bg-emerald-500/20 p-2 rounded-full mr-5 mt-1 flex-shrink-0"><i
+                                data-lucide="check-circle" class="text-emerald-400 w-6 h-6"></i></div>
+                        <p class="text-2xl text-gray-200 leading-relaxed"><strong class="text-white">Tốc độ thực thi cực
+                                nhanh</strong>, triệt tiêu hoàn toàn lỗi Flaky test.</p>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-emerald-500/20 p-2 rounded-full mr-5 mt-1 flex-shrink-0"><i
+                                data-lucide="check-circle" class="text-emerald-400 w-6 h-6"></i></div>
+                        <p class="text-2xl text-gray-200 leading-relaxed"><strong class="text-white">Hệ sinh thái công
+                                cụ</strong> và CI/CD hoàn hảo, được hậu thuẫn bởi Microsoft.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-8 animate-fade-in delay-200 opacity-0-init mt-8">
+                    <button onclick="openVideoPortal()"
+                        class="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white px-10 py-5 rounded-2xl font-bold text-2xl flex items-center justify-center transition-all shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:shadow-[0_15px_40px_rgba(16,185,129,0.6)] transform hover:-translate-y-2">
+                        <i data-lucide="play-circle" class="mr-4 w-8 h-8"></i> Demo code thực tế
+                    </button>
+                    <button
+                        class="bg-gray-800 hover:bg-gray-700 text-white px-10 py-5 rounded-2xl font-bold text-2xl flex items-center justify-center transition-all border-2 border-gray-600 hover:border-gray-400 transform hover:-translate-y-2">
+                        <i data-lucide="help-circle" class="mr-4 w-8 h-8"></i> Q&A
+                    </button>
+                </div>
+                <p
+                    class="text-gray-400 mt-16 animate-fade-in delay-300 opacity-0-init text-xl font-medium tracking-wide">
+                    Cảm ơn Thầy và các bạn đã lắng nghe!
+                </p>
+            </div>
+
+        </div>
+
+        <!-- FOOTER NAVIGATION -->
+        <div class="hidden">
+            <div class="flex items-center text-gray-400 text-xl font-medium tracking-wide">
+                <span class="text-emerald-400 mr-2" id="current-slide-lbl">Slide 1</span> / 9
+            </div>
+            <div class="flex space-x-6">
+                <button id="prev-btn"
+                    class="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 text-white bg-gray-800 border border-gray-700 hover:bg-emerald-600 hover:border-emerald-500 hover:scale-110 nav-btn"
+                    disabled>
+                    <i data-lucide="chevron-left" class="w-8 h-8"></i>
+                </button>
+                <button id="next-btn"
+                    class="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 text-white bg-gray-800 border border-gray-700 hover:bg-emerald-600 hover:border-emerald-500 hover:scale-110 nav-btn">
+                    <i data-lucide="chevron-right" class="w-8 h-8"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================== VIDEO PORTAL (OVERLAYED) ================== -->
+    <div id="video-portal" class="video-portal-container">
+
+        <div class="text-center mb-6 animate-fade-in opacity-0-init pt-6" id="vp-header">
+            <h1 class="text-4xl font-bold gradient-text mb-2">Playwright Demo Showcase</h1>
+            <p class="text-gray-400 text-lg">Test Execution Result - TGDĐ Case Studies</p>
+        </div>
+
+        <!-- Khung Upload lúc đầu -->
+        <label id="upload-box"
+            class="bg-gray-800/50 border-2 border-dashed border-gray-600 hover:border-emerald-500 rounded-3xl p-12 text-center cursor-pointer transition-all animate-fade-in delay-100 opacity-0-init hover:bg-gray-800/80 block w-full max-w-2xl mb-12">
+            <i data-lucide="upload-cloud" class="w-20 h-20 text-emerald-400 mx-auto mb-6"></i>
+            <h2 class="text-2xl text-white font-bold mb-3">Tải Video Playwright (.webm)</h2>
+            <p class="text-gray-400 mb-6">Mở test-results/ chọn video mới xuất ra</p>
+            <span
+                class="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-500 transition-colors inline-block">Duyệt
+                File</span>
+            <input type="file" id="video-upload" accept="video/webm, video/mp4" class="hidden">
+        </label>
+
+        <!-- Trình chiếu Video -->
+        <div id="video-player-wrapper" class="hidden flex-col items-center w-full animate-fade-in">
+            <video id="demo-video" controls autoplay></video>
+
+            <!-- Grid Card ẩn dưới video -->
+            <div id="cases-grid" class="flex flex-wrap justify-center gap-6 max-w-7xl pt-6 pb-20">
+                <div class="bg-gray-800/60 border border-gray-600 p-6 rounded-2xl w-[300px] cursor-pointer hover:border-emerald-400 hover:-translate-y-2 transition-all group"
+                    onclick="showCode('TC03')">
+                    <h3 class="text-xl font-bold text-emerald-400 mb-3 group-hover:text-emerald-300">TC03: Sticky Header
+                    </h3>
+                    <p class="text-sm text-gray-400">Force click & Selector href lách qua element bị đè lên.</p>
+                </div>
+                <div class="bg-gray-800/60 border border-gray-600 p-6 rounded-2xl w-[300px] cursor-pointer hover:border-emerald-400 hover:-translate-y-2 transition-all group"
+                    onclick="showCode('TC07')">
+                    <h3 class="text-xl font-bold text-emerald-400 mb-3 group-hover:text-emerald-300">TC07: Gõ "Mổ Cò"
+                    </h3>
+                    <p class="text-sm text-gray-400">API .type() delay 150ms để fetch suggestion mượt mà.</p>
+                </div>
+                <div class="bg-gray-800/60 border border-gray-600 p-6 rounded-2xl w-[300px] cursor-pointer hover:border-emerald-400 hover:-translate-y-2 transition-all group"
+                    onclick="showCode('TC12')">
+                    <h3 class="text-xl font-bold text-emerald-400 mb-3 group-hover:text-emerald-300">TC12: Interception
+                    </h3>
+                    <p class="text-sm text-gray-400">Ngắt mạng hình ảnh PNG/JPG để test giao diện dự phòng.</p>
+                </div>
+                <div class="bg-gray-800/60 border border-gray-600 p-6 rounded-2xl w-[300px] cursor-pointer hover:border-emerald-400 hover:-translate-y-2 transition-all group"
+                    onclick="showCode('TC13')">
+                    <h3 class="text-xl font-bold text-emerald-400 mb-3 group-hover:text-emerald-300">TC13: Visual
+                        Regression</h3>
+                    <p class="text-sm text-gray-400">So pixel ảnh chụp tự động để bắt lỗi UI lệch bố cục.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Back to slides -->
+        <button onclick="closeVideoPortal()"
+            class="fixed top-6 right-6 bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white px-5 py-2.5 rounded-lg flex items-center transition-all z-50">
+            <i data-lucide="x" class="w-5 h-5 mr-2"></i> Đóng Demo
+        </button>
+    </div>
+
+    <!-- CODE MODAL -->
+    <div id="code-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] hidden items-center justify-center">
+        <div class="bg-gray-900 border border-gray-700 w-[800px] max-w-[90%] rounded-2xl overflow-hidden shadow-2xl"
+            id="code-modal-content">
+            <div class="bg-gray-950 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                <h3 id="code-title" class="text-xl font-bold text-blue-400 font-mono">CODE</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-white"><i data-lucide="x"
+                        class="w-6 h-6"></i></button>
+            </div>
+            <pre
+                class="p-6 bg-[#0d1117] overflow-x-auto text-[15px] leading-[1.6]"><code id="code-block" class="code-syntax"></code></pre>
+        </div>
+    </div>
+
+
+    <script>
+        // Init Icons
+        lucide.createIcons();
+
+        // Slider Logic
+        let currentSlide = 1;
+        const totalSlides = 9;
+        const slides = document.querySelectorAll('.slide');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const lblSlide = document.getElementById('current-slide-lbl');
+        const progressBar = document.getElementById('progress-bar');
+
+        function updateSlide(newSlide) {
+            // Loại active class ở slide cũ
+            slides[currentSlide - 1].classList.remove('active');
+
+            // Xử lý re-trigger animation bằng cách force reflow
+            const nextSlideEl = slides[newSlide - 1];
+
+            // Remove animation classes if they exist so we can re-add them
+            const animatedEls = nextSlideEl.querySelectorAll('.animate-fade-in, .animate-slide-in-right');
+            animatedEls.forEach(el => {
+                el.style.animation = 'none';
+                el.offsetHeight; /* trigger reflow */
+                el.style.animation = null;
+            });
+
+            currentSlide = newSlide;
+            nextSlideEl.classList.add('active');
+
+            // Update UI
+            lblSlide.innerText = `Slide ${currentSlide}`;
+            progressBar.style.width = `${(currentSlide / totalSlides) * 100}%`;
+
+            prevBtn.disabled = currentSlide === 1;
+            nextBtn.disabled = currentSlide === totalSlides;
+        }
+
+        prevBtn.addEventListener('click', () => { if (currentSlide > 1) updateSlide(currentSlide - 1); });
+        nextBtn.addEventListener('click', () => { if (currentSlide < totalSlides) updateSlide(currentSlide + 1); });
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('video-portal').classList.contains('active')) return; // Khong ban slide khi dang trong Portal
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                if (currentSlide < totalSlides) updateSlide(currentSlide + 1);
+            } else if (e.key === 'ArrowLeft') {
+                if (currentSlide > 1) updateSlide(currentSlide - 1);
+            }
+        });
+
+        // ---------------- VIDEO PORTAL LOGIC ----------------
+        const portal = document.getElementById('video-portal');
+        const fileInput = document.getElementById('video-upload');
+        const uploadBox = document.getElementById('upload-box');
+        const playerWrapper = document.getElementById('video-player-wrapper');
+        const videoPlayer = document.getElementById('demo-video');
+        const vpHeader = document.getElementById('vp-header');
+
+        function openVideoPortal() {
+            portal.classList.add('active');
+            // reset state
+            uploadBox.classList.remove('hidden');
+            uploadBox.style.display = 'block';
+            playerWrapper.classList.add('hidden');
+            playerWrapper.classList.remove('flex');
+            vpHeader.style.display = 'block';
+        }
+
+        function closeVideoPortal() {
+            videoPlayer.pause();
+            videoPlayer.src = "";
+            portal.classList.remove('active');
+        }
+
+        fileInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                const objectUrl = URL.createObjectURL(file);
+                videoPlayer.src = objectUrl;
+
+                uploadBox.style.display = 'none';
+                vpHeader.style.display = 'none';
+
+                playerWrapper.classList.remove('hidden');
+                playerWrapper.classList.add('flex');
+            }
+        });
+
+        // Fake Data Code 
+        const codeData = {
+            'TC03': `<span class="comment">// Tìm chính xác nút Lọc Samsung thông qua đường dẫn (Tránh dùng Regex text)</span>
+<span class="keyword">const</span> samsungFilter = page.<span class="function">locator</span>(<span class="string">'a[href*="/dtdd-samsung"]'</span>).<span class="function">first</span>();
+
+<span class="comment">// Ép click xuyên qua lớp Sticky Header cản trở</span>
+<span class="keyword">await</span> samsungFilter.<span class="function">waitFor</span>({ state: <span class="string">'attached'</span>, timeout: 5000 });
+<span class="keyword">await</span> samsungFilter.<span class="function">hover</span>({ force: <span class="keyword">true</span> });
+<span class="keyword">await</span> <span class="function">humanDelay</span>(1000, 1500);
+<span class="keyword">await</span> samsungFilter.<span class="function">click</span>({ force: <span class="keyword">true</span> });`,
+
+            'TC07': `<span class="comment">// Kỹ thuật Gõ Mổ Cò Từng Chữ</span>
+<span class="keyword">const</span> searchInput = page.<span class="function">locator</span>(<span class="string">'input#skw'</span>).<span class="function">first</span>();
+<span class="keyword">await</span> searchInput.<span class="function">click</span>();
+<span class="keyword">await</span> <span class="function">humanDelay</span>(500, 1000);
+
+<span class="comment">// Dùng API .type() với delay mô phỏng người đánh phím 150ms/ký tự</span>
+<span class="keyword">await</span> searchInput.<span class="function">type</span>(<span class="string">'S24 FE'</span>, { delay: <span class="string">150</span> });`,
+
+            'TC12': `<span class="comment">// Network Interception: Đánh chặn mạng</span>
+<span class="keyword">await</span> page.<span class="function">route</span>(<span class="string">'**/*.{png,jpg,jpeg,webp}'</span>, route => {
+    <span class="comment">// Hủy lập tức mọi request xin tải hình ảnh từ Backend</span>
+    route.<span class="function">abort</span>();
+});
+<span class="keyword">await</span> page.<span class="function">goto</span>(<span class="string">'https://www.thegioididong.com/'</span>);`,
+
+            'TC13': `<span class="comment">// Visual Regression Testing (So sánh Pixel)</span>
+<span class="keyword">const</span> element = page.<span class="function">locator</span>(<span class="string">'.banner-main'</span>).<span class="function">first</span>();
+<span class="keyword">await</span> element.<span class="function">scrollIntoViewIfNeeded</span>();
+
+<span class="comment">// Chụp hình và đối chiếu pixel với Baseline</span>
+<span class="keyword">await</span> <span class="function">expect</span>(element).<span class="function">toHaveScreenshot</span>(<span class="string">'iphone-banner-ui.png'</span>, {
+    maxDiffPixelRatio: 0.05
+});`
+        };
+
+        const codeModal = document.getElementById('code-modal');
+        const codeModalContent = document.getElementById('code-modal-content');
+
+        function showCode(caseId) {
+            document.getElementById('code-title').innerText = "Bóc tách Code: " + caseId;
+            document.getElementById('code-block').innerHTML = codeData[caseId];
+            codeModal.classList.remove('hidden');
+            codeModal.classList.add('flex');
+            codeModalContent.style.animation = 'modalZoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+        }
+
+        function closeModal() {
+            codeModal.classList.add('hidden');
+            codeModal.classList.remove('flex');
+            codeModalContent.style.animation = 'none';
+        }
+
+        // Đóng modal bấm ngoài viền
+        window.addEventListener('click', (e) => {
+            if (e.target === codeModal) closeModal();
+        });
+    </script>
+</body>
+
+</html>
