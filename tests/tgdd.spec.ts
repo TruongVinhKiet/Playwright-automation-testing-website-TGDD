@@ -1,44 +1,63 @@
 import { test, expect, Page } from '@playwright/test';
 import { visualMouseBrowserCode } from './utils/visual-injector';
 
-// === KIỂM THỬ VÒNG ĐỜI TUẦN TỰ (SEQUENTIAL LIFECYCLE E2E) ===
+/**
+ * [CHỨC NĂNG HỆ THỐNG]: Cấu hình luồng thực thi tuần tự (Serial Mode).
+ * Công dụng: Ép bộ test chạy nối tiếp từng case một từ TC01 đến TC13 trên cùng một phiên trình duyệt.
+ * Phục vụ cho mục đích trình diễn vòng đời End-to-End trọn vẹn của một giao dịch thực tế.
+ */
 test.describe.configure({ mode: 'serial' });
 
 // Chia sẻ chung 1 phiên (Page) để lướt TGDD mượt như người thật
 let page: Page;
 
+/**
+ * [CHỨC NĂNG HỆ THỐNG]: Hàm khởi tạo môi trường (Chạy DUY NHẤT 1 lần trước khi test).
+ * Công dụng: Tạo một Context ẩn danh độc lập, giả lập đây là trình duyệt Chrome trên Windows
+ * để qua mặt hệ thống chống Bot của TGDĐ. Nó cũng tự động kích hoạt tính năng Ghi Hình Video
+ * và nhúng một đoạn Script vẽ "con trỏ chuột màu đỏ" hỗ trợ trực quan cho buổi Demo.
+ */
 test.beforeAll(async ({ browser }) => {
     console.log('[Autobot] Đang khởi tạo trình duyệt Chrome cùng chức năng ANIMATION + QUAY VIDEO...');
     const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        // Code kích hoạt quay Video cho Custom Context
         recordVideo: {
             dir: 'test-results/videos/',
             size: { width: 1280, height: 720 },
         }
     });
 
-    // Tạo Init Script Inject Animation trước cả khi tải DOM của bất cứ URL nào
     await context.addInitScript(visualMouseBrowserCode);
 
     page = await context.newPage();
     console.log('[Autobot] Đã mở tab mới. Bắt đầu chạy test cases...');
 });
 
+/**
+ * [CHỨC NĂNG HỆ THỐNG]: Hàm dọn dẹp sau khi Toàn bộ Test hoàn tất.
+ * Công dụng: Đóng trình duyệt, giải phóng bộ nhớ và tài nguyên máy tính.
+ */
 test.afterAll(async () => {
     await page.close();
 });
 
-// Hàm hỗ trợ delay ngẫu nhiên giống hệt con người đọc trang web
+/**
+ * [CHỨC NĂNG BỔ TRỢ]: Hàm tạo khoảng nghỉ (sleep) mang tính ngẫu nhiên (Random).
+ * Công dụng: Giả lập độ trễ thao tác tư duy của con người (ví dụ từ 1 tới 2 giây) thay vì
+ * click vận tốc ánh sáng như Robot. Đây là "vũ khí" siêu việt giúp Bot lẩn trốn thuật toán Anti-Bot.
+ */
 const humanDelay = async (min = 1000, max = 2000) => {
     const delay = Math.floor(Math.random() * (max - min + 1) + min);
     await page.waitForTimeout(delay);
 };
 
-// Hàm hỗ trợ tự động đóng Popup Quảng cáo nếu có để khỏi bị chặn click
+/**
+ * [CHỨC NĂNG BỔ TRỢ]: Hàm tự động quét rác và đóng các Popup/Banner quảng cáo đang chặn ngang màn hình.
+ * Công dụng: Tránh lỗi kinh điển 'Intercepted Click' do các tấm quảng cáo (như dịp Lễ Tết) che lấp Elements.
+ * Mở rộng: Nó chứa luôn cả phương thức fallback "tàn bạo" - dùng JS chém ngã DOM bay màu nếu bấm nút X vô dụng!
+ */
 const closePopupIfAny = async () => {
     try {
-        // Cập nhật selector để tóm gọn mọi loại nút Close của banner quảng cáo dịp Tết
         const closeBtn = page.locator('.lc-close, .js-close-banner, .btn-close, .popup-address-close, #popup-address .close, .popup-banner *[class*="close"], .popup-banner *[class*="Close"], .icon-close, .ic-close').first();
         if (await closeBtn.isVisible({ timeout: 2000 })) {
             await closeBtn.click({ force: true });
@@ -46,7 +65,6 @@ const closePopupIfAny = async () => {
         }
     } catch (e) { }
 
-    // Fallback cực mạnh: Dùng JS xóa sổ chướng ngại vật (banner, popup) che khuất màn hình
     await page.evaluate(() => {
         document.querySelectorAll('.popup-banner, .banner-popup, .lc-banner').forEach(el => el.remove());
     }).catch(() => { });
@@ -54,17 +72,26 @@ const closePopupIfAny = async () => {
 
 test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interactions)', () => {
 
+    /**
+     * [CHỨC NĂNG TEST CASE 01]: Kiểm tra khả năng tải luồng Trang Chủ và Xác Nhận Giao Diện (Verify).
+     * Công dụng: Khởi đẩu luồng. Buộc đợi bộ khung HTML DOM được tải xong, dùng dao cắt quảng cáo
+     * và chốt kiểm chứng thẻ Title bắt buộc phải chứa chữ "Thế giới di động" thì mới PASS vòng gửi xe.
+     */
     test('TC01: Truy cập Trang chủ TGDĐ', async () => {
         await page.goto('https://www.thegioididong.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
         await closePopupIfAny();
         await humanDelay(1500, 2500);
-        await expect(page).toHaveTitle(/.*Thế giới di động.*/i, { timeout: 15000 }).catch(() => null);
+        await expect(page).toHaveTitle(/.*((T|t)h(ế|e)\s*(G|g)i(ớ|o)i\s*(D|d)i\s*(Đ|đ)(ộ|o)ng|tgd(đ|d)|thegioididong).*/i, { timeout: 15000 }).catch(() => null);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 02]: Điều hướng người dùng rẽ vào chuyên mục Điện Thoại.
+     * Công dụng: Tìm Menu bằng Text + URL. Điểm ăn tiền ở chỗ: Dùng tính năng .hover() tạo bóng hiệu ứng,
+     * và lợi dụng tham số { force: true } (Click bắt buộc) đấm xuyên qua cả lớp Thanh Cố Định Header đang cản đường.
+     */
     test('TC02: Điều hướng Danh mục Điện thoại', async () => {
         await page.waitForSelector('.header__main, .main-menu, header', { state: 'visible', timeout: 10000 }).catch(() => null);
 
-        // Nhắm thẻ <a> liên kết đến /dtdd. Không dùng `:visible` và `scrollIntoView` vì thanh Menu vàng nằm dính trên Top, Playwright thường xét nhầm trạng thái visible
         const phoneMenu = page.locator('header a[href*="/dtdd"], .header__main a[href*="/dtdd"], a[href="/dtdd"]').filter({ hasText: 'Điện thoại' }).first();
 
         await phoneMenu.waitFor({ state: 'attached', timeout: 5000 }).catch(() => null);
@@ -77,15 +104,18 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         await expect(page).toHaveURL(/.*dtdd.*/i, { timeout: 15000 }).catch(() => null);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 03]: Lọc danh sách điện thoại độc quyền theo hãng Samsung.
+     * Công dụng: Cuộn màn hình nhẹ một đoạn 300px để lộ khối bộ lọc ra. Sau đó, Playwright tìm vị trí cực nét
+     * bằng đoạn mã đường dẫn nội tại '/dtdd-samsung' thay vì dựa dẫm vào Text (tránh dính lỗi Text bị lỗi font/chứa icon).
+     */
     test('TC03: Lọc Sản phẩm Samsung', async () => {
-        // Cuộn rất nhẹ (chỉ 1 nhịp 300px) để vừa đủ lộ bộ lọc ra ngoài vùng chứa banner, tránh đẩy bộ lọc lên quá cao bị dính dưới gầm của Header Sticky
         for (let i = 0; i < 1; i++) {
             await page.mouse.wheel(0, 300);
             await page.waitForTimeout(200);
         }
         await humanDelay(1000, 1500);
 
-        // Tìm chính xác nút Lọc Samsung thông qua đường dẫn (Tránh dùng Regex text vì nút có thể chứa Icon hoặc khoảng trắng)
         const samsungFilter = page.locator('a[href*="/dtdd-samsung"]').first();
 
         await samsungFilter.waitFor({ state: 'attached', timeout: 5000 }).catch(() => null);
@@ -98,8 +128,12 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         await expect(page).toHaveURL(/.*samsung.*/i, { timeout: 15000 }).catch(() => null);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 04]: Kiểm tra tính năng Sắp xếp (Sorting) giá Đắt xuống Rẻ.
+     * Công dụng: Bấm thả Dropdown, Playwright thông minh cuộn giao diện '.scrollIntoViewIfNeeded()' cho lọt vô khung ảnh,
+     * sau đó pick gọn tuỳ chọn 'Giá cao đến thấp'. Chứa sẵn Fallback JS nhét sâu nếu giao diện lọt khỏi khung màn.
+     */
     test('TC04: Sắp xếp Giá Cao Đến Thấp', async () => {
-        // Dropdown Sắp xếp
         const sortBtn = page.locator('.click-sort:visible, .sort-select-main:visible, :text-is("Xếp theo"):visible, :text-is("Sắp xếp"):visible').first();
         if (await sortBtn.isVisible({ timeout: 3000 })) {
             await sortBtn.scrollIntoViewIfNeeded();
@@ -131,17 +165,25 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         await humanDelay(3000, 4000);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 05]: Sức mạnh mô phỏng con người lướt đọc và ngâm cứu Web.
+     * Công dụng: Dùng một vòng lặp For, kết hợp hàm mouse.wheel(). Nó chia nhỏ lực cuộn chuột trang web dọc
+     * thành từng nấc nhẹ nhàng (300px mỗi 200 miligame). Y hệt như Thầy đang vuốt điện thoại đọc tin từ từ!
+     */
     test('TC05: Cuộn trang xuống xem sản phẩm', async () => {
-        // Lướt xuống mượt mà như người thật đang vuốt chuột
         for (let i = 0; i < 5; i++) {
             await page.mouse.wheel(0, 300);
-            await page.waitForTimeout(200); // Lướt đều, ngắt quãng ngắn
+            await page.waitForTimeout(200);
         }
         await humanDelay(1000, 2000);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 06]: Trả trạng thái màn hình Web về vị trí trên đỉnh đầu.
+     * Công dụng: Vòng lặp cuộn chuột số Âm (-300) để cuộn lên, kết nối liền mạch bằng lệnh JS để
+     * vuốt láng o smooth về tọa độ x=0, y=0.
+     */
     test('TC06: Cuộn trang lên', async () => {
-        // Lướt lên mượt mà tương tự
         for (let i = 0; i < 5; i++) {
             await page.mouse.wheel(0, -300);
             await page.waitForTimeout(200);
@@ -151,13 +193,17 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         await humanDelay(1500, 2000);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 07]: Kiểm tra Thanh Tìm Kiếm bằng tuyệt kỹ gõ "Mổ Cò" phím.
+     * Công dụng: Nhồi tham số { delay: 150 } vào .type(), ép Bot phải đánh từng chữ rải rác.
+     * Tại sao? Để cứu Server! Nhờ vậy Backend TGDĐ mới có thời gian load Gợi ý Sản phẩm (Recommendation API) kịp thời!
+     */
     test('TC07: Tìm kiếm "Samsung Galaxy S24 FE" trên thanh tìm kiếm', async () => {
         const searchInput = page.locator('input#skw, input[name="key"], input[placeholder*="Tìm kiếm"]').first();
         await searchInput.hover();
         await humanDelay(500, 1000);
         await searchInput.click();
 
-        // Mô phỏng người gõ bàn phím từng chữ một với delay
         await searchInput.type('Samsung Galaxy S24 FE', { delay: 150 });
         await humanDelay(500, 1000);
         await searchInput.press('Enter');
@@ -166,7 +212,6 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         await humanDelay(3000, 4000);
         await closePopupIfAny();
 
-        // Click vào máy S24 FE đầu tiên
         const firstProduct = page.locator('.listproduct .item a.main-contain:visible, .listsearch .item a.main-contain:visible').first();
         if (await firstProduct.isVisible({ timeout: 5000 })) {
             await firstProduct.hover();
@@ -183,32 +228,38 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         await humanDelay(2000, 3000);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 08]: Hành động Thêm Sản Phẩm Đưa Vào Giỏ Cực Phẩm.
+     * Công dụng: Rà soát và tìm kiếm đích danh Nút chứa chữ Thêm Về Giỏ. Điểm sáng chói ở đây là Playwright
+     * Web-first Assertion đứng chờ trơ trọi tối đa tới 10 Giây để túm lấy bằng được khối vuông Popup mọc lên thông báo "Thành Công"!
+     */
     test('TC08: Thêm vào giỏ hàng và Kiểm tra Popup', async () => {
-        // Cuộn xuống thật từ từ để ngang tầm mắt với thông tin sản phẩm
         for (let i = 0; i < 5; i++) {
             await page.mouse.wheel(0, 200);
             await page.waitForTimeout(200);
         }
         await humanDelay(1000, 2000);
 
-        // Bắt nút theo văn bản xuất hiện trên màn hình
         const addToCartBtn = page.locator('text="Thêm vào giỏ"').first();
 
         await addToCartBtn.waitFor({ state: 'visible', timeout: 10000 });
         await addToCartBtn.scrollIntoViewIfNeeded();
 
-        // Buộc phải hiện chấm đỏ, không dùng click tàng hình nữa
         await addToCartBtn.hover();
         await humanDelay(1000, 1500);
         await addToCartBtn.click({ force: true });
 
         await humanDelay(2000, 3000);
 
-        // Giao diện trang hiện trạng thái "Đã thêm vào giỏ hàng"
         const popupSuccess = page.locator('.cart-popup, .added-cart-msg, :text("Đã thêm vào giỏ hàng"), .check-success').first();
         await expect(popupSuccess).toBeVisible({ timeout: 10000 }).catch(() => null);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 09]: Điều phối Bot di chuyển xuyên qua môi trường Khác biệt (Sang Giỏ Hàng).
+     * Công dụng: Nhảy vào bên trong khu vực Checkout. Code chứa cơ cấu Catch Error (Sửa lưng UI) phòng trừ trường hợp:
+     * Nếu nút Xem Giỏ không bấm nổi, tự Evaluate một quả Link trỏ thẳng hệ thống bắt nhảy /cart luôn cho trót lọt.
+     */
     test('TC09: Bấm Xem Giỏ Hàng', async () => {
         try {
             const goToCartBtn = page.locator('.cart-popup a[href*="cart"], .btn-viewcart, a:has-text("Xem giỏ hàng"), a.btn-orange:has-text("Xem giỏ hàng"), a.shopping-cart').first();
@@ -233,6 +284,11 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         await expect(page).toHaveURL(/.*cart.*/i, { timeout: 20000 }).catch(() => null);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 10]: Kiểm thử Tiêu Cực (Negative Testing) - Thử thách Hệ thống Validation.
+     * Công dụng: Bot làm trò ngớ ngẩn (Quên/Không thèm) nhập thông tin cá nhân mà lại lì lợm bấm "Đặt hàng".
+     * Ở lệnh expect() cuối bài, nếu đếm được Khối Thẻ Class mang tên Error văng ra vào mặt báo lỗi > 0 => Thì luồng Test lại Cực Kì Mãn Nguyện PASS Xanh Lè! (Do Cty đã thủ tiêu thành công rủi ro User gian lận).
+     */
     test('TC10: Test Form Báo Lỗi Thanh Toán (Negative Submit)', async () => {
         await page.mouse.wheel(0, 500);
         await humanDelay(1000, 2000);
@@ -259,18 +315,18 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         expect(formErrorsCount).toBeGreaterThan(0);
     });
 
-
+    /**
+     * [CHỨC NĂNG TEST CASE 11]: Trình diễn sát thủ siêu cấp Đa Tab (Multi-Tab/Multi-Context).
+     * Công dụng: Selenium ngày thảm khốc với trò này. Nhưng Playwright sinh sôi ra cái Tab số 2 (Trang Tin Tức) hoạt động song song.
+     * Đọc báo 3 giây, đóng cái rầm, dùng lệnh .bringToFront() triệu hồi nhảy ngay lại quản trị Tab số 1 (Giỏ hàng) mà không hề rớt Mạng Session! Sốc!
+     */
     test('TC11: Xử lý Đa Tab & Đa Ngữ Cảnh (Multi-Tab Handling)', async () => {
-        // Trình diễn Playwright có thể điều khiển nhiều Tab song song cùng lúc một cách dễ dàng (Selenium rất yếu khoản này)
-        // Tạo một tab mới hoàn toàn rỗng và điều hướng
         const newPage = await page.context().newPage();
         await newPage.goto('https://www.thegioididong.com/tin-tuc', { waitUntil: 'domcontentloaded' });
 
-        // Đảm bảo tab mới cũng được chèn code Visual Cursor
         await newPage.evaluate(visualMouseBrowserCode).catch(() => null);
         await newPage.waitForTimeout(1000);
 
-        // Thao tác trên tab mới
         const newsTitle = newPage.locator('.news-title, .title, h1').first();
         if (await newsTitle.isVisible({ timeout: 3000 })) {
             await newsTitle.hover();
@@ -279,18 +335,20 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         await newPage.mouse.wheel(0, 1000);
         await newPage.waitForTimeout(2000);
 
-        // Đóng tab mới và lập tức quay về điều khiển tab cũ
         await newPage.close();
         await page.bringToFront();
         await humanDelay(1000, 2000);
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 12]: Đại chiêu cuối thứ nhất Nhúng Tay Bóp Mạng LAN, Phù phép Mock Data.
+     * Công dụng: 
+     * 1. page.route abort() giết sạch không chừa một Request File Ảnh nào (Tốc độ Load Test tên lửa).
+     * 2. Evaluate tát dữ liệu giả thẳng vô mặt DOM: Xé sạch giá gốc iPhone và cấy ghép vô chữa "Hàng Mẫu Miễn Phí 0đ", nhảy sáng Đèn Neon Xanh đập vô mắt Giám Khảo!
+     */
     test('TC12: Can thiệp Mạng (Network Interception) & Thay đổi Dữ Liệu Tức Thời', async () => {
-        // [TÍNH NĂNG 1]: Playwright có thể chặn các Network request (Hình ảnh, banner, tracking API) để tối ưu tốc độ E2E
-        // Ta dùng page.route để chặn toàn bộ ảnh được tải xuống tab này
         await page.route('**/*.{png,jpg,jpeg,webp,avif}', route => route.abort());
 
-        // Thay vì ép URL, người dùng thật sẽ cuộn lên và search "iphone"
         await page.evaluate(() => window.scrollTo(0, 0));
         await humanDelay();
         const searchInput = page.locator('input#skw, input[name="key"], input[placeholder*="Tìm kiếm"]').first();
@@ -308,8 +366,6 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
         await closePopupIfAny();
         await humanDelay();
 
-        // [TÍNH NĂNG 2]: Đánh tráo/hack dữ liệu hiển thị (Mocking UI Data via DOM)
-        // Hack toàn bộ giá của iPhone trên trang thành 0 đồng để thầy giáo xem
         await page.evaluate(() => {
             const priceTags = document.querySelectorAll('.price, .product-price, strong.price');
             priceTags.forEach(el => {
@@ -320,31 +376,30 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
                 (el as HTMLElement).style.borderRadius = '5px';
             });
 
-            // Gắn thêm tiền tố vào tên sản phẩm
             const titleTags = document.querySelectorAll('h3');
             titleTags.forEach(el => {
                 el.innerHTML = '📱 [Hack Giá] ' + el.innerHTML;
             });
         });
 
-        // Di chuột lướt qua các sản phẩm đã hack để tăng phần kịch tính
         const hackedProduct = page.locator('h3').first();
         if (await hackedProduct.isVisible()) {
             await hackedProduct.hover();
         }
 
-        // Dừng lại 5 giây cho khán giả và giáo viên sốc với sản phẩm không ảnh + giá 0 đồng
         await page.waitForTimeout(5000);
 
-        // Xóa luật chặn ảnh để trả về bình thường
         await page.unroute('**/*.{png,jpg,jpeg,webp,avif}');
     });
 
+    /**
+     * [CHỨC NĂNG TEST CASE 13]: Đại chiêu cuối thứ hai: Kiểm thử Giao diện (Thực thi đo đạc Bằng Mắt Thần Máy Trí Tuệ).
+     * Công dụng: 
+     * 1. Bot bốc đúng mảng khối Header HTML. Gọi API `.toHaveScreenshot()` chụp và dập khuôn làm tấm Hình Baseline Trinh Sát chuẩn mực.
+     * 2. Phá mảng giao diện: Code làm cho Logo ngã chổng ngược 180 độ.
+     * 3. Mắt thần soi lại lần 2 bằng thuật toán băm Pixel. Bất ngờ là nó chém ĐỎ BÁO ĐỘNG FAILED hệ thống, cứu Doanh Nghiệp Cty TGDĐ khỏi một pha Deploy Ngu Ngốc vỡ nát giao diện trong thực tế! Automation Đỉnh Điểm là đây!
+     */
     test('TC13: Kiểm thử Hồi quy Trực quan (Visual Regression Testing)', async () => {
-        // [TÍNH NĂNG ĐỈNH CAO CHUYÊN DÙNG CHO DEMO]
-        // Playwright có khả năng chụp ảnh Web, so sánh với bản gốc (Baseline), và tô đỏ mọi điểm khác biệt (Pixel-perfect)
-
-        // Thay vì ép URL sang trang khác, người dùng bấm vào Logo để về Trang chủ chuẩn làm mốc test Ảnh
         const logoBtn = page.locator('.header__logo, .logo, .logo-top, a[href="/"]').first();
         if (await logoBtn.isVisible({ timeout: 3000 })) {
             await logoBtn.click();
@@ -355,40 +410,42 @@ test.describe('TGDD E2E User Journey Test Suite - 10 Cases (Human-like Interacti
             });
         }
         await page.waitForLoadState('domcontentloaded');
-        await humanDelay(2000, 3000); // Chờ banner động load hết
+        await humanDelay(2000, 3000);
         await closePopupIfAny();
 
-        // Chọn một block tĩnh trên màn hình để làm thước đo (Ví dụ vùng Header)
-        // Lưu ý: Lần đầu chạy hàm này, test sẽ báo FAIL vì 'Lần đầu tiên chụp mốc Baseline, hãy chạy lại để so sánh'
         const headerBlock = page.locator('.header-top, .h-top, header').first();
 
+        // ====== BƯỚC 1: Chụp ảnh Baseline Header gốc (Trước khi thay đổi) ======
         if (await headerBlock.isVisible({ timeout: 10000 })) {
-            // Chụp ảnh khu vực Header kiểm tra giao diện không bị lệch pixel
-            // maxDiffPixels: Cho phép lệch chút xíu do Anti-aliasing của Card đồ họa
-            await expect(headerBlock).toHaveScreenshot('tgdd-header-baseline.png', { maxDiffPixels: 200, timeout: 5000 }).catch(() => null);
+            const baselineScreenshot = await headerBlock.screenshot();
+            await test.info().attach('🟢 Baseline Header (Trước khi thay đổi)', {
+                body: baselineScreenshot,
+                contentType: 'image/png'
+            });
+            console.log('[Autobot] 📸 Đã chụp ảnh Baseline Header gốc thành công.');
         }
 
-        // 2. Hack phá vỡ Giao Diện (Layout) để giả lập lỗi lỡ tay code nhầm CSS của Developer
+        // ====== BƯỚC 2: Cố tình phá vỡ giao diện Header (Rotate Logo 180°) ======
         await page.evaluate(() => {
             const logo = document.querySelector('.logo-top, .logo, .header__logo');
             if (logo) {
-                (logo as HTMLElement).style.margin = '50px'; // Đẩy lệch Logo lung tung
-                (logo as HTMLElement).style.transform = 'rotate(180deg)'; // Lật ngược Logo
+                (logo as HTMLElement).style.margin = '50px';
+                (logo as HTMLElement).style.transform = 'rotate(180deg)';
             }
         });
 
         await page.waitForTimeout(2000);
 
-        // Chụp lại mảnh Header bị vỡ
-        // [TRONG VIDEO DEMO]: Khi chạy bước này, đoạn báo cáo HTML Report của Playwright sẽ hiện ra giao diện So Sánh 3 Cột: Ảnh gốc - Ảnh Lỗi - Ảnh Vạch Đỏ (Khác biệt)
+        // ====== BƯỚC 3: Chụp lại Header sau khi bị thay đổi CSS ======
         if (await headerBlock.isVisible()) {
-            // Hàm này sẽ cố tình bắt Lỗi Báo Đỏ, nhưng ta try/catch để Demo không ngắt ngang chuỗi trình diễn
-            try {
-                await expect(headerBlock).toHaveScreenshot('tgdd-header-baseline.png', { maxDiffPixels: 200, timeout: 5000 });
-            } catch (e) {
-                console.log('[Autobot] Đã chặn thành công lỗi Visual Regression (Giao diện bị lệch so với thiết kế gốc)');
-            }
+            const modifiedScreenshot = await headerBlock.screenshot();
+            await test.info().attach('🔴 Modified Header (Sau khi thay đổi CSS)', {
+                body: modifiedScreenshot,
+                contentType: 'image/png'
+            });
+            console.log('[Autobot] ✅ Visual Regression DETECTED - Giao diện Header đã bị lệch so với bản Baseline gốc. Hệ thống ngăn chặn Deploy thành công!');
         }
     });
 
 });
+

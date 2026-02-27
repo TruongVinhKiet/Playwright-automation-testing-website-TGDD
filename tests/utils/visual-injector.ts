@@ -1,4 +1,4 @@
-// Script này sẽ được Playwright serialize và tiêm thẳng vào DOM của mỗi trang web ngay khi nó load (cross-navigation)
+
 export function visualMouseBrowserCode() {
     // Đảm bảo code chạy trong trình duyệt
     if (typeof document === 'undefined') return;
